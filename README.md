@@ -1,6 +1,8 @@
 # pywpacrack
 WPA Cracker in Python3
 
+usage: python3 wpacrack.py datafile dictionary
+
 -- Proof of Concept --
 
 The File with the Data must have following Format:
