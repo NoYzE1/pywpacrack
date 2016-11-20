@@ -89,8 +89,13 @@ Data.mic = str_to_hex(Data.micstr)
 Data.mic = bytes(Data.mic)
 Data.data = process_data(Data.datastr)
 
+single_thread = False
 cpu_count = multiprocessing.cpu_count()
-p = multiprocessing.Pool(4)
+try:
+    p = multiprocessing.Pool(4)
+except:
+    single_thread = True
+
 counter = 0
 kps_counter = 0
 kps = 0
@@ -102,11 +107,17 @@ while True:
     pmk = []
     ptk = []
     cmic = []
-    for i in range(cpu_count):
+    if single_thread == False:
+        for i in range(cpu_count):
+            password.append(passwords.readline().strip("\n"))
+    else:
         password.append(passwords.readline().strip("\n"))
     if password[0] != "":
         counter += len(password)
-        results = p.map(calculate_all, password)
+        if single_thread == False:
+            results = p.map(calculate_all, password)
+        else:
+            results = [calculate_all(password[0])]
         for i in range(len(results)):
             pmk.append(results[i][0])
             ptk.append(results[i][1])
