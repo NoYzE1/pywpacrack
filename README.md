@@ -5,13 +5,13 @@ WPA Cracker in Python3
 
 The File with the Data must have following Format:
 
-ap essid
-ap mac
-sp mac
-ap nonce
-sp nonce
-eapol data
-mic of frame 2
+ap essid<br>
+ap mac<br>
+sp mac<br>
+ap nonce<br>
+sp nonce<br>
+eapol data<br>
+mic of frame 2<br>
 
 Format like a2f5g3dda2b5 -> Hex without seperators
 
