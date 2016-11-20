@@ -102,14 +102,14 @@ while True:
         if time.time() - ts2 >= 0.05:
             print("Keys tested: {0} ({1} k/s)".format(counter, kps))
             print("Current Passphrase: {0}".format(password))
-            print("Pairwise Master Key: ", bytes_to_hex(pmk))
-            print("Pairwise Transient Key: ", bytes_to_hex(ptk))
-            print("MIC: ", bytes_to_hex(cmic))
+            print("Master Key: ", bytes_to_hex(pmk))
+            print("Transient Key: ", bytes_to_hex(ptk))
+            print("Message Integrity Check: ", bytes_to_hex(cmic))
             print()
             ts2 = time.time()
         if cmic == mic:
             print("Key found! [ {0} ]".format(password))
             break
     else:
-        print("Password not in Dictionary!")
+        print("Passphrase not in Dictionary!")
         break
