@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import sys
+import time
 
 f = open("{0}".format(sys.argv[1]), "r")
 
@@ -80,17 +81,32 @@ snonce = str_to_hex(snoncestr)
 mic = str_to_hex(micstr)
 mic = bytes(mic)
 
+counter = 0
+kps_counter = 0
+kps = 0
+ts = time.time()
+ts2 = time.time()
+
 while True:
     password = passwords.readline().strip("\n")
     if password != "":
+        counter += 1
+        if time.time() - ts >= 1:
+            kps = counter - kps_counter
+            kps_counter = counter
+            ts = time.time()
         pmk = calculate_PMK(password, essid)
         ptk = calculate_PTK(amac, smac, anonce, snonce, pmk)
         data = process_data(datastr)
         cmic = calculate_MIC(ptk, data)
-        print("Passphrase: {0}".format(password))
-        print("Pairwise Master Key: ", bytes_to_hex(pmk))
-        print("Pairwise Transient Key: ", bytes_to_hex(ptk))
-        print("MIC: ", bytes_to_hex(cmic))
+        if time.time() - ts2 >= 0.05:
+            print("Keys tested: {0} ({1} k/s)".format(counter, kps))
+            print("Current Passphrase: {0}".format(password))
+            print("Pairwise Master Key: ", bytes_to_hex(pmk))
+            print("Pairwise Transient Key: ", bytes_to_hex(ptk))
+            print("MIC: ", bytes_to_hex(cmic))
+            print()
+            ts2 = time.time()
         if cmic == mic:
             print("Key found! [ {0} ]".format(password))
             break
