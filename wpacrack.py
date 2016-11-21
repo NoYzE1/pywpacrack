@@ -71,7 +71,6 @@ def calculate_PTK(amac, smac, anonce, snonce, pmk):
 
 def calculate_MIC(ptk, data):
     data = bytes(data)
-    h = hashlib.sha1()
     return hmac.new(ptk[0:16], data, "sha1").digest()[0:16]
 
 def calculate(password):
