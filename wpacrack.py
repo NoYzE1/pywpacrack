@@ -2,7 +2,6 @@ import hashlib
 import hmac
 import sys
 import time
-import multiprocessing
 
 f = open("{0}".format(sys.argv[1]), "r")
 
@@ -75,11 +74,11 @@ def calculate_MIC(ptk, data):
     h = hashlib.sha1()
     return hmac.new(ptk[0:16], data, "sha1").digest()[0:16]
 
-def calculate_all(password):
+def calculate(password):
     pmk = calculate_PMK(password, Data.essid)
     ptk = calculate_PTK(Data.amac, Data.smac, Data.anonce, Data.snonce, pmk)
     cmic = calculate_MIC(ptk, Data.data)
-    return [pmk, ptk, cmic]
+    return pmk, ptk, cmic
 
 Data.amac = str_to_hex(Data.amacstr)
 Data.smac = str_to_hex(Data.smacstr)
@@ -89,13 +88,6 @@ Data.mic = str_to_hex(Data.micstr)
 Data.mic = bytes(Data.mic)
 Data.data = process_data(Data.datastr)
 
-single_thread = False
-cpu_count = multiprocessing.cpu_count()
-try:
-    p = multiprocessing.Pool(4)
-except:
-    single_thread = True
-
 counter = 0
 kps_counter = 0
 kps = 0
@@ -103,41 +95,25 @@ ts = time.time()
 ts2 = time.time()
 
 while True:
-    password = []
-    pmk = []
-    ptk = []
-    cmic = []
-    if single_thread == False:
-        for i in range(cpu_count):
-            password.append(passwords.readline().strip("\n"))
-    else:
-        password.append(passwords.readline().strip("\n"))
-    if password[0] != "":
-        counter += len(password)
-        if single_thread == False:
-            results = p.map(calculate_all, password)
-        else:
-            results = [calculate_all(password[0])]
-        for i in range(len(results)):
-            pmk.append(results[i][0])
-            ptk.append(results[i][1])
-            cmic.append(results[i][2])
+    password = passwords.readline().strip("\n")
+    if password != "":
+        counter += 1
+        pmk, ptk, cmic = calculate(password)
         if time.time() - ts >= 1:
             kps = counter - kps_counter
             kps_counter = counter
             ts = time.time()
         if time.time() - ts2 >= 0.05:
             print("Keys tested: {0} ({1} k/s)".format(counter, kps))
-            print("Current Passphrase: {0}".format(password[0]))
-            print("Master Key: ", bytes_to_hex(pmk[0]))
-            print("Transient Key: ", bytes_to_hex(ptk[0]))
-            print("Message Integrity Check: ", bytes_to_hex(cmic[0]))
+            print("Current Passphrase: {0}".format(password))
+            print("Master Key: ", bytes_to_hex(pmk))
+            print("Transient Key: ", bytes_to_hex(ptk))
+            print("Message Integrity Check: ", bytes_to_hex(cmic))
             print()
             ts2 = time.time()
-        for i in range(len(password)):
-            if cmic[i] == Data.mic:
-                print("Key found! [ {0} ]".format(password[i]))
-                exit(0)
+        if cmic == Data.mic:
+            print("Key found! [ {0} ]".format(password))
+            exit(0)
     else:
         print("Passphrase not in Dictionary!")
         break
