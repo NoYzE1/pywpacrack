@@ -3,26 +3,35 @@ import hmac
 import sys
 import time
 
-f = open("{0}".format(sys.argv[1]), "r")
-
-passwords = open("{0}".format(sys.argv[2]), "r")
-
 class Data:
+
+    # File Descriptors
+    f = open("{0}".format(sys.argv[1]), "r")
+    passwords = open("{0}".format(sys.argv[2]), "r")
+
+    # File Data
     essid = f.readline().strip("\n")
     amacstr = f.readline()
-    amac = []
     smacstr = f.readline()
-    smac = []
     anoncestr = f.readline()
-    anonce = []
     snoncestr = f.readline()
-    snonce = []
     datastr = f.readline()
     micstr = f.readline()
+
+    # Bytestrings
+    amac = []
+    smac = []
+    anonce = []
+    snonce = []
     mic = []
-    cmik = b''
     data = []
-    pmk = b''
+
+    # Cycle Data
+    counter = 0
+    kps_counter = 0
+    kps = 0
+    ts = time.time()
+    ts2 = time.time()
 
 def str_to_hex(string):
     string = string.strip("\n")
@@ -53,9 +62,6 @@ def calculate_PMK(password, essid):
 
 # Calculate Pairwise Transient Key
 def calculate_PTK(amac, smac, anonce, snonce, pmk):
-
-    ptk = b''
-
     # Pairwise Key Expansion
     pke = [0x50, 0x61, 0x69, 0x72, 0x77, 0x69, 0x73, 0x65, 0x20, 0x6b, 0x65, 0x79, 0x20, 0x65, 0x78, 0x70, 0x61, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x00]
     pke += min(amac, smac)
@@ -63,6 +69,8 @@ def calculate_PTK(amac, smac, anonce, snonce, pmk):
     pke += min(anonce, snonce)
     pke += max(anonce, snonce)
     pke.append(0x00)
+
+    ptk = b''
 
     for i in range(4):
         pke[99] = i;
@@ -79,40 +87,48 @@ def calculate(password):
     cmic = calculate_MIC(ptk, Data.data)
     return pmk, ptk, cmic
 
-Data.amac = str_to_hex(Data.amacstr)
-Data.smac = str_to_hex(Data.smacstr)
-Data.anonce = str_to_hex(Data.anoncestr)
-Data.snonce = str_to_hex(Data.snoncestr)
-Data.mic = str_to_hex(Data.micstr)
-Data.mic = bytes(Data.mic)
-Data.data = process_data(Data.datastr)
+def initialize():
+    Data.amac = str_to_hex(Data.amacstr)
+    Data.smac = str_to_hex(Data.smacstr)
+    Data.anonce = str_to_hex(Data.anoncestr)
+    Data.snonce = str_to_hex(Data.snoncestr)
+    Data.mic = str_to_hex(Data.micstr)
+    Data.mic = bytes(Data.mic)
+    Data.data = process_data(Data.datastr)
 
-counter = 0
-kps_counter = 0
-kps = 0
-ts = time.time()
-ts2 = time.time()
-
-while True:
-    password = passwords.readline().strip("\n")
+def cycle():
+    password = Data.passwords.readline().strip("\n")
     if password != "":
-        counter += 1
+        Data.counter += 1
         pmk, ptk, cmic = calculate(password)
-        if time.time() - ts >= 1:
-            kps = counter - kps_counter
-            kps_counter = counter
-            ts = time.time()
-        if time.time() - ts2 >= 0.05:
-            print("Keys tested: {0} ({1} k/s)".format(counter, kps))
+        if time.time() - Data.ts >= 1:
+            Data.kps = Data.counter - Data.kps_counter
+            Data.kps_counter = Data.counter
+            Data.ts = time.time()
+        if time.time() - Data.ts2 >= 0.05:
+            print("Keys tested: {0} ({1} k/s)".format(Data.counter, Data.kps))
             print("Current Passphrase: {0}".format(password))
             print("Master Key: ", bytes_to_hex(pmk))
             print("Transient Key: ", bytes_to_hex(ptk))
             print("Message Integrity Check: ", bytes_to_hex(cmic))
             print()
-            ts2 = time.time()
+            Data.ts2 = time.time()
         if cmic == Data.mic:
+            print("Keys tested: {0} ({1} k/s)".format(Data.counter, Data.kps))
+            print("Current Passphrase: {0}".format(password))
+            print("Master Key: ", bytes_to_hex(pmk))
+            print("Transient Key: ", bytes_to_hex(ptk))
+            print("Message Integrity Check: ", bytes_to_hex(cmic))
+            print()
             print("Key found! [ {0} ]".format(password))
+            print()
             exit(0)
     else:
         print("Passphrase not in Dictionary!")
-        break
+
+def run():
+    initialize()
+    while True:
+        cycle()
+
+run()
