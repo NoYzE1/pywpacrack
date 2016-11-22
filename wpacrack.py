@@ -62,6 +62,8 @@ def calculate_PMK(password, essid):
 
 # Calculate Pairwise Transient Key
 def calculate_PTK(amac, smac, anonce, snonce, pmk):
+    # Local Variables
+    ptk = b''
     # Pairwise Key Expansion
     pke = [0x50, 0x61, 0x69, 0x72, 0x77, 0x69, 0x73, 0x65, 0x20, 0x6b, 0x65, 0x79, 0x20, 0x65, 0x78, 0x70, 0x61, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x00]
     pke += min(amac, smac)
@@ -69,9 +71,7 @@ def calculate_PTK(amac, smac, anonce, snonce, pmk):
     pke += min(anonce, snonce)
     pke += max(anonce, snonce)
     pke.append(0x00)
-
-    ptk = b''
-
+    # Swap out last byte and hash
     for i in range(4):
         pke[99] = i;
         ptk += hmac.new(pmk, bytes(pke), "sha1").digest()
