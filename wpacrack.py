@@ -125,6 +125,7 @@ def cycle():
             exit(0)
     else:
         print("Passphrase not in Dictionary!")
+        exit(0)
 
 def run():
     initialize()
