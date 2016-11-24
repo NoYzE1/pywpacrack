@@ -3,6 +3,7 @@ import hmac
 import sys
 import time
 
+
 class Data:
 
     # File Descriptors
@@ -33,6 +34,7 @@ class Data:
     ts = time.time()
     ts2 = time.time()
 
+
 def str_to_hex(string):
     string = string.strip("\n")
     hexarr = []
@@ -40,52 +42,65 @@ def str_to_hex(string):
         hexarr.append(int(string[i:i+2], 16))
     return hexarr
 
+
 def process_data(datastr):
     datastr = datastr.strip("\n")
     data = []
-    datahex = []
     for i in range(0, len(datastr), 2):
         data.append(int(datastr[i:i+2], 16))
     for i in range(81, 98, 1):
         data[i] = 0
     return data
 
+
 def bytes_to_hex(b):
     h = ""
-    for i in range(len(b)):
-        h += hex(b[i]).strip("0x")
+    l = len(b)
+    for i in range(l):
+        cb = b[i]
+        if cb < 16:
+            h += "0"
+        h += hex(cb)[2:l-1]
+        if i < l - 1:
+            h += " "
     return h
 
+
 # Calculate Pairwise Master Key
-def calculate_PMK(password, essid):
+def calculate_pmk(password, essid):
     return hashlib.pbkdf2_hmac("sha1", bytes(password, "utf-8"), bytes(essid, "utf-8"), 4096, 32)
 
+
 # Calculate Pairwise Transient Key
-def calculate_PTK(amac, smac, anonce, snonce, pmk):
-    # Local Variables
+def calculate_ptk(amac, smac, anonce, snonce, pmk):
+    # Variable for constructed ptk
     ptk = b''
-    # Pairwise Key Expansion
-    pke = [0x50, 0x61, 0x69, 0x72, 0x77, 0x69, 0x73, 0x65, 0x20, 0x6b, 0x65, 0x79, 0x20, 0x65, 0x78, 0x70, 0x61, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x00]
+    # Literally "Pairwise Key Expansion" + trailing 0x00
+    pke = [0x50, 0x61, 0x69, 0x72, 0x77, 0x69, 0x73, 0x65, 0x20, 0x6b, 0x65, 0x79, 0x20, 0x65, 0x78, 0x70, 0x61, 0x6e,
+           0x73, 0x69, 0x6f, 0x6e, 0x00]
     pke += min(amac, smac)
     pke += max(amac, smac)
     pke += min(anonce, snonce)
     pke += max(anonce, snonce)
     pke.append(0x00)
-    # Swap out last byte and hash
+    # Swap out last byte and hash into ptk
     for i in range(4):
-        pke[99] = i;
+        pke[99] = i
         ptk += hmac.new(pmk, bytes(pke), "sha1").digest()
     return ptk
 
-def calculate_MIC(ptk, data):
+
+def calculate_mic(ptk, data):
     data = bytes(data)
     return hmac.new(ptk[0:16], data, "sha1").digest()[0:16]
 
+
 def calculate(password):
-    pmk = calculate_PMK(password, Data.essid)
-    ptk = calculate_PTK(Data.amac, Data.smac, Data.anonce, Data.snonce, pmk)
-    cmic = calculate_MIC(ptk, Data.data)
+    pmk = calculate_pmk(password, Data.essid)
+    ptk = calculate_ptk(Data.amac, Data.smac, Data.anonce, Data.snonce, pmk)
+    cmic = calculate_mic(ptk, Data.data)
     return pmk, ptk, cmic
+
 
 def initialize():
     Data.amac = str_to_hex(Data.amacstr)
@@ -95,6 +110,7 @@ def initialize():
     Data.mic = str_to_hex(Data.micstr)
     Data.mic = bytes(Data.mic)
     Data.data = process_data(Data.datastr)
+
 
 def cycle():
     password = Data.passwords.readline().strip("\n")
@@ -126,6 +142,7 @@ def cycle():
     else:
         print("Passphrase not in Dictionary!")
         exit(0)
+
 
 def run():
     initialize()
