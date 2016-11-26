@@ -7,8 +7,8 @@ import time
 class Data:
 
     # File Descriptors
-    f = open("{0}".format(sys.argv[1]), "r")
-    passwords = open("{0}".format(sys.argv[2]), "r")
+    f = open(sys.argv[1], "r")
+    p = open(sys.argv[2], "r")
 
     # File Data
     essid = f.readline().strip("\n")
@@ -33,6 +33,9 @@ class Data:
     kps = 0
     ts = time.time()
     ts2 = time.time()
+
+    report = False
+    report_freq = 0
 
 
 def str_to_hex(string):
@@ -110,10 +113,15 @@ def initialize():
     Data.mic = str_to_hex(Data.micstr)
     Data.mic = bytes(Data.mic)
     Data.data = process_data(Data.datastr)
+    Data.f.close()
+    if len(sys.argv) == 5:
+        if sys.argv[3] == "-r":
+            Data.report = True
+            Data.report_freq = int(sys.argv[4])
 
 
 def cycle():
-    password = Data.passwords.readline().strip("\n")
+    password = Data.p.readline().strip("\n")
     if password != "":
         Data.counter += 1
         pmk, ptk, cmic = calculate(password)
@@ -124,21 +132,35 @@ def cycle():
         if time.time() - Data.ts2 >= 0.05:
             print("Keys tested: {0} ({1} k/s)".format(Data.counter, Data.kps))
             print("Current Passphrase: {0}".format(password))
-            print("Master Key: ", bytes_to_hex(pmk))
-            print("Transient Key: ", bytes_to_hex(ptk))
-            print("Message Integrity Check: ", bytes_to_hex(cmic))
-            print()
+            print("Master Key: {0}".format(bytes_to_hex(pmk)))
+            print("Transient Key: {0}".format(bytes_to_hex(ptk)))
+            print("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
             Data.ts2 = time.time()
         if cmic == Data.mic:
             print("Keys tested: {0} ({1} k/s)".format(Data.counter, Data.kps))
             print("Current Passphrase: {0}".format(password))
-            print("Master Key: ", bytes_to_hex(pmk))
-            print("Transient Key: ", bytes_to_hex(ptk))
-            print("Message Integrity Check: ", bytes_to_hex(cmic))
-            print()
-            print("Key found! [ {0} ]".format(password))
-            print()
+            print("Master Key: {0}".format(bytes_to_hex(pmk)))
+            print("Transient Key: {0}".format(bytes_to_hex(ptk)))
+            print("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
+            print("Key found! [ {0} ]\n".format(password))
+            if Data.report == True:
+                so = open("report", "w")
+                so.write("Keys tested: {0} ({1} k/s)\n".format(str(Data.counter), str(Data.kps)))
+                so.write("Current Passphrase: {0}\n".format(password))
+                so.write("Master Key: {0}\n".format(bytes_to_hex(pmk)))
+                so.write("Transient Key: {0}\n".format(bytes_to_hex(ptk)))
+                so.write("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
+                so.write("Key found! [ {0} ]\n".format(password))
+                so.close()
             exit(0)
+        if Data.report == True and Data.counter % Data.report_freq == 0:
+            so = open("report", "w")
+            so.write("Keys tested: {0} ({1} k/s)\n".format(str(Data.counter), str(Data.kps)))
+            so.write("Current Passphrase: {0}\n".format(password))
+            so.write("Master Key: {0}\n".format(bytes_to_hex(pmk)))
+            so.write("Transient Key: {0}\n".format(bytes_to_hex(ptk)))
+            so.write("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
+            so.close()
     else:
         print("Passphrase not in Dictionary!")
         exit(0)
@@ -147,6 +169,10 @@ def cycle():
 def run():
     initialize()
     while True:
-        cycle()
+        try:
+            cycle()
+        except KeyboardInterrupt:
+            Data.p.close()
+            exit(0)
 
 run()
