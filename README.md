@@ -3,6 +3,9 @@ WPA Cracker in Python3
 
 usage: python3 wpacrack.py datafile dictionary
 
+If you want to write output to a file add -r <frequency>
+This will write the current status into a report file every x keys tested.
+
 -- Proof of Concept --
 
 The File with the Data must have following Format:
