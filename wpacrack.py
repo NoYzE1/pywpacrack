@@ -39,7 +39,7 @@ def get_handshake_data(essid, pcap_file):
     for byte in pcap_file.read():
         pcap_bytes.append(byte)
     for i in range(len(pcap_bytes)):
-        if pcap_bytes[i] == 0x80 and pcap_bytes[i + 1] == 0x00 and beacon == False:
+        if pcap_bytes[i] == 0x80 and pcap_bytes[i + 1] == 0x00 and beacon is False:
             test_essid = ""
             essid_length = pcap_bytes[i + 37]
             for j in range(essid_length):
@@ -48,7 +48,7 @@ def get_handshake_data(essid, pcap_file):
                 for k in range(6):
                     amac.append(pcap_bytes[i + 10 + k])
                 beacon = True
-        if pcap_bytes[i] == 0x88 and pcap_bytes[i + 1] == 0x02 and beacon == True and handshake1 == False:
+        if pcap_bytes[i] == 0x88 and pcap_bytes[i + 1] == 0x02 and beacon is True and handshake1 is False:
             test_amac = []
             for j in range(6):
                 test_amac.append(pcap_bytes[i + 10 + j])
