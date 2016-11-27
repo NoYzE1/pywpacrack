@@ -5,28 +5,18 @@ import time
 
 
 class Data:
-
     # File Descriptors
-    f = open(sys.argv[1], "r")
-    p = open(sys.argv[2], "r")
-
+    p = open(sys.argv[4], "r")
     # File Data
-    essid = f.readline().strip("\n")
-    amacstr = f.readline()
-    smacstr = f.readline()
-    anoncestr = f.readline()
-    snoncestr = f.readline()
-    datastr = f.readline()
-    micstr = f.readline()
-
+    essid = sys.argv[2]
+    pcap_file = open(sys.argv[5], "rb")
     # Bytestrings
-    amac = []
-    smac = []
-    anonce = []
-    snonce = []
-    mic = []
-    data = []
-
+    amac = b''
+    smac = b''
+    anonce = b''
+    snonce = b''
+    mic = b''
+    data = b''
     # Cycle Data
     counter = 0
     kps_counter = 0
@@ -34,26 +24,62 @@ class Data:
     ts = time.time()
     ts2 = time.time()
 
-    report = False
-    report_freq = 0
 
-
-def str_to_hex(string):
-    string = string.strip("\n")
-    hexarr = []
-    for i in range(0, len(string), 2):
-        hexarr.append(int(string[i:i+2], 16))
-    return hexarr
-
-
-def process_data(datastr):
-    datastr = datastr.strip("\n")
+def get_handshake_data(essid, pcap_file):
+    amac = []
+    smac = []
+    anonce = []
+    snonce = []
+    mic = []
     data = []
-    for i in range(0, len(datastr), 2):
-        data.append(int(datastr[i:i+2], 16))
-    for i in range(81, 98, 1):
-        data[i] = 0
-    return data
+    beacon = False
+    handshake1 = False
+    handshake2 = False
+    pcap_bytes = []
+    for byte in pcap_file.read():
+        pcap_bytes.append(byte)
+    for i in range(len(pcap_bytes)):
+        if pcap_bytes[i] == 0x80 and pcap_bytes[i + 1] == 0x00 and beacon == False:
+            test_essid = ""
+            essid_length = pcap_bytes[i + 37]
+            for j in range(essid_length):
+                test_essid += chr(pcap_bytes[i + 38 + j])
+            if test_essid == essid:
+                for k in range(6):
+                    amac.append(pcap_bytes[i + 10 + k])
+                beacon = True
+        if pcap_bytes[i] == 0x88 and pcap_bytes[i + 1] == 0x02 and beacon == True and handshake1 == False:
+            test_amac = []
+            for j in range(6):
+                test_amac.append(pcap_bytes[i + 10 + j])
+            if test_amac == amac:
+                for k in range(6):
+                    smac.append(pcap_bytes[i + 4 + k])
+                for k in range(32):
+                    anonce.append(pcap_bytes[i + 51 + k])
+                handshake1 = True
+        if pcap_bytes[i] == 0x88 and pcap_bytes[
+                    i + 1] == 0x01 and beacon is True and handshake1 is True and handshake2 is False:
+            test_amac = []
+            test_smac = []
+            for j in range(6):
+                test_amac.append(pcap_bytes[i + 4 + j])
+            for j in range(6):
+                test_smac.append(pcap_bytes[i + 10 + j])
+            if test_amac == amac and test_smac == smac:
+                for k in range(32):
+                    snonce.append(pcap_bytes[i + 51 + k])
+                for k in range(16):
+                    mic.append(pcap_bytes[i + 115 + k])
+                    pcap_bytes[i + 115 + k] = 0x00
+                for k in range(99):
+                    data.append(pcap_bytes[i + 34 + k])
+                for k in range(data[98]):
+                    data.append(pcap_bytes[i + 35 + 98 + k])
+                handshake2 = True
+        if beacon is True and handshake1 is True and handshake2 is True:
+            break
+    return bytes(amac), bytes(smac), bytes(anonce), bytes(snonce), bytes(mic), bytes(data)
 
 
 def bytes_to_hex(b):
@@ -63,7 +89,7 @@ def bytes_to_hex(b):
         cb = b[i]
         if cb < 16:
             h += "0"
-        h += hex(cb)[2:l-1]
+        h += hex(cb)[2:l - 1]
         if i < l - 1:
             h += " "
     return h
@@ -106,18 +132,8 @@ def calculate(password):
 
 
 def initialize():
-    Data.amac = str_to_hex(Data.amacstr)
-    Data.smac = str_to_hex(Data.smacstr)
-    Data.anonce = str_to_hex(Data.anoncestr)
-    Data.snonce = str_to_hex(Data.snoncestr)
-    Data.mic = str_to_hex(Data.micstr)
-    Data.mic = bytes(Data.mic)
-    Data.data = process_data(Data.datastr)
-    Data.f.close()
-    if len(sys.argv) == 5:
-        if sys.argv[3] == "-r":
-            Data.report = True
-            Data.report_freq = int(sys.argv[4])
+    Data.amac, Data.smac, Data.anonce, Data.snonce, Data.mic, Data.data = get_handshake_data(Data.essid, Data.pcap_file)
+    Data.pcap_file.close()
 
 
 def cycle():
@@ -143,24 +159,7 @@ def cycle():
             print("Transient Key: {0}".format(bytes_to_hex(ptk)))
             print("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
             print("Key found! [ {0} ]\n".format(password))
-            if Data.report == True:
-                so = open("report", "w")
-                so.write("Keys tested: {0} ({1} k/s)\n".format(str(Data.counter), str(Data.kps)))
-                so.write("Current Passphrase: {0}\n".format(password))
-                so.write("Master Key: {0}\n".format(bytes_to_hex(pmk)))
-                so.write("Transient Key: {0}\n".format(bytes_to_hex(ptk)))
-                so.write("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
-                so.write("Key found! [ {0} ]\n".format(password))
-                so.close()
             exit(0)
-        if Data.report == True and Data.counter % Data.report_freq == 0:
-            so = open("report", "w")
-            so.write("Keys tested: {0} ({1} k/s)\n".format(str(Data.counter), str(Data.kps)))
-            so.write("Current Passphrase: {0}\n".format(password))
-            so.write("Master Key: {0}\n".format(bytes_to_hex(pmk)))
-            so.write("Transient Key: {0}\n".format(bytes_to_hex(ptk)))
-            so.write("Message Integrity Check: {0}\n".format(bytes_to_hex(cmic)))
-            so.close()
     else:
         print("Passphrase not in Dictionary!")
         exit(0)
@@ -174,5 +173,6 @@ def run():
         except KeyboardInterrupt:
             Data.p.close()
             exit(0)
+
 
 run()
