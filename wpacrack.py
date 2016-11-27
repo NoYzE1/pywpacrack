@@ -77,6 +77,8 @@ def get_handshake_data(essid, pcap_file):
                 for k in range(data[98]):
                     data.append(pcap_bytes[i + 35 + 98 + k])
                 handshake2 = True
+            else:
+                handshake1 = False
         if beacon is True and handshake1 is True and handshake2 is True:
             break
     return bytes(amac), bytes(smac), bytes(anonce), bytes(snonce), bytes(mic), bytes(data)
@@ -114,7 +116,11 @@ def calculate_ptk(amac, smac, anonce, snonce, pmk):
     pke.append(0x00)
     # Swap out last byte and hash into ptk
     for i in range(4):
-        pke[99] = i
+        try:
+            pke[99] = i
+        except IndexError:
+            print("No handshake found!")
+            exit(1)
         ptk += hmac.new(pmk, bytes(pke), "sha1").digest()
     return ptk
 
