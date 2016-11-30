@@ -1,28 +1,57 @@
 import hashlib
-import hmac
 import sys
 import time
 
 
 class Data:
     # File Descriptors
-    p = open(sys.argv[4], "r")
+    p = open(sys.argv[4], "r")  # Password File
     # File Data
     essid = sys.argv[2]
     pcap_file = open(sys.argv[5], "rb")
-    # Bytestrings
-    amac = b''
-    smac = b''
-    anonce = b''
-    snonce = b''
-    mic = b''
-    data = b''
+    # Bytearrays
+    amac = b''  # AP MAC
+    smac = b''  # SP MAC
+    anonce = b''  # AP Nonce (Handhake 1/4)
+    snonce = b''  # SP Nonce (Handshake 2/4)
+    mic = b''  # Message Integrity Check (Handshake 2/4)
+    data = b''  # Data from Handshake 2
     # Cycle Data
     counter = 0
     kps_counter = 0
     kps = 0
     ts = time.time()
     ts2 = time.time()
+    # HMAC data
+    ipad = bytes([0x36] * 64)
+    opad = bytes([0x5C] * 64)
+
+
+def get_hmac_sha1(k, text):
+
+    b1 = b''
+    b2 = b''
+    h1 = hashlib.sha1()
+    h2 = hashlib.sha1()
+
+    for i in range(64 - len(k)):
+        k += b'\x00'
+
+    for i in range(64):
+        b1 += bytes([k[i] ^ Data.ipad[i]])
+
+    b1 += text
+    h1.update(b1)
+    b1 = h1.digest()
+
+    for i in range(64):
+        b2 += bytes([k[i] ^ Data.opad[i]])
+
+    b2 += b1
+    h2.update(b2)
+    b2 = h2.digest()
+
+    return b2
 
 
 def get_handshake_data(essid, pcap_file):
@@ -121,13 +150,13 @@ def calculate_ptk(amac, smac, anonce, snonce, pmk):
         except IndexError:
             print("No handshake found!")
             exit(1)
-        ptk += hmac.new(pmk, bytes(pke), "sha1").digest()
+        ptk += get_hmac_sha1(pmk, bytes(pke))
     return ptk
 
 
 def calculate_mic(ptk, data):
     data = bytes(data)
-    return hmac.new(ptk[0:16], data, "sha1").digest()[0:16]
+    return get_hmac_sha1(ptk[0:16], data)[0:16]
 
 
 def calculate(password):
