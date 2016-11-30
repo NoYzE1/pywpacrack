@@ -34,8 +34,10 @@ def get_hmac_sha1(k, text):
     h1 = hashlib.sha1()
     h2 = hashlib.sha1()
 
-    for i in range(64 - len(k)):
-        k += b'\x00'
+    if len(k) == 32:
+        k += b'\x00' * 32
+    elif len(k) == 16:
+        k += b'\x00' * 48
 
     for i in range(64):
         b1 += bytes([k[i] ^ Data.ipad[i]])
