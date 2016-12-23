@@ -5,7 +5,11 @@ import time
 
 class Data:
     # File Descriptors
-    p = open(sys.argv[4], "r")  # Password File
+    if sys.argv[4] != "-":
+        p = open(sys.argv[4], "r")  # Password File
+        stdin = False
+    else:
+        stdin = True # Stdin Mode
     # File Data
     essid = sys.argv[2]
     pcap_file = open(sys.argv[5], "rb")
@@ -174,7 +178,10 @@ def initialize():
 
 
 def cycle():
-    password = Data.p.readline().strip("\n")
+    if Data.stdin == False:
+        password = Data.p.readline().strip("\n")
+    else:
+        password = input().strip("\n")
     if password != "":
         Data.counter += 1
         pmk, ptk, cmic = calculate(password)
