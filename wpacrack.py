@@ -1,6 +1,7 @@
 import hashlib
 import sys
 import time
+import hmac
 
 
 class Data:
@@ -30,6 +31,15 @@ class Data:
     ipad = bytes([0x36] * 64)
     opad = bytes([0x5C] * 64)
 
+    try:
+        if sys.argv[6] == "-nhl": # no hmac lib
+            nhl = True
+        else:
+            nhl = False
+    except:
+        nhl = False
+
+# Unfortunately slower than the hmac lib but i'll keep it for now as proof of concept
 
 def get_hmac_sha1(k, text):
 
@@ -156,13 +166,18 @@ def calculate_ptk(amac, smac, anonce, snonce, pmk):
         except IndexError:
             print("No handshake found!")
             exit(1)
-        ptk += get_hmac_sha1(pmk, bytes(pke))
+        if Data.nhl:
+            ptk += get_hmac_sha1(pmk, bytes(pke))
+        else:
+            ptk += hmac.new(pmk, bytes(pke), hashlib.sha1).digest()
     return ptk
 
 
 def calculate_mic(ptk, data):
     data = bytes(data)
-    return get_hmac_sha1(ptk[0:16], data)[0:16]
+    if Data.nhl:
+        return get_hmac_sha1(ptk[0:16], data)[0:16]
+    return hmac.new(ptk[0:16], data, hashlib.sha1).digest()[0:16]
 
 
 def calculate(password):
